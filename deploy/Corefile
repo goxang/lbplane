@@ -1,0 +1,8 @@
+.:53 {
+    hosts /run/lb/hosts {
+        reload 2s
+        fallthrough
+    }
+    errors
+    log
+}

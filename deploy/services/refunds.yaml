@@ -1,0 +1,7 @@
+name: refunds
+owner: refunds-team
+hostnames: [refunds.pay.test]
+balance: leastconn
+backends:
+  - address: 172.28.0.22:5678
+    weight: 100

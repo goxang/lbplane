@@ -1,0 +1,6 @@
+name: checkout
+owner: payments-team
+hostnames: [checkout.pay.test]
+tls_cert: /certs/checkout.pem
+backends:
+  - address: 172.28.0.21:5678

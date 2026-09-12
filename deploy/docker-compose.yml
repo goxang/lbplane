@@ -1,0 +1,76 @@
+name: lbplane
+
+services:
+  lbplane:
+    build:
+      context: ..
+      args:
+        GOPROXY: ${GOPROXY:-https://proxy.golang.org,direct}
+        GOSUMDB: ${GOSUMDB:-sum.golang.org}
+    command:
+      - run
+      - --specs=/etc/lbplane/services
+      - --haproxy-config=/run/lb/haproxy.cfg
+      - --dns-hosts=/run/lb/hosts
+      - --vip=172.28.0.10
+      - --interval=2s
+    volumes:
+      - ${SPECS_DIR:-./services}:/etc/lbplane/services:ro
+      - ${CERTS_DIR:-./certs}:/certs:ro
+      - lb-run:/run/lb
+    ports:
+      - "9100:9100"
+    networks:
+      lbnet:
+        ipv4_address: 172.28.0.5
+
+  haproxy:
+    image: haproxy:3.0
+    user: root
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - until [ -f /run/lb/haproxy.cfg ]; do sleep 1; done; exec haproxy -W -S /run/lb/master.sock -f /run/lb/haproxy.cfg
+    volumes:
+      - ${CERTS_DIR:-./certs}:/certs:ro
+      - lb-run:/run/lb
+    ports:
+      - "8080:80"
+      - "8443:443"
+    networks:
+      lbnet:
+        ipv4_address: 172.28.0.10
+
+  coredns:
+    image: coredns/coredns:1.11.3
+    command: ["-conf", "/etc/coredns/Corefile"]
+    volumes:
+      - ./Corefile:/etc/coredns/Corefile:ro
+      - lb-run:/run/lb:ro
+    ports:
+      - "1053:53/udp"
+    networks:
+      lbnet:
+        ipv4_address: 172.28.0.53
+
+  echo-a:
+    image: hashicorp/http-echo:1.0
+    command: ["-text=served by a"]
+    networks:
+      lbnet:
+        ipv4_address: 172.28.0.21
+
+  echo-b:
+    image: hashicorp/http-echo:1.0
+    command: ["-text=served by b"]
+    networks:
+      lbnet:
+        ipv4_address: 172.28.0.22
+
+volumes:
+  lb-run:
+
+networks:
+  lbnet:
+    ipam:
+      config:
+        - subnet: 172.28.0.0/24
