@@ -61,7 +61,7 @@ lbplane validate --specs services --haproxy-bin haproxy
 
 ```bash
 make test    # unit tests, the haproxy -c test runs if haproxy is installed
-make lint
+make lint    # golangci-lint, install with make lint-deps
 make e2e     # the full stack in Docker Compose
 ```
 
