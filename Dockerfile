@@ -1,4 +1,4 @@
-FROM golang:1.23-alpine AS build
+FROM golang:1.27-alpine AS build
 ARG GOPROXY=https://proxy.golang.org,direct
 ARG GOSUMDB=sum.golang.org
 WORKDIR /src
