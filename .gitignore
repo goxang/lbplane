@@ -1,2 +1,3 @@
 bin/
 deploy/certs/
+coverage.out

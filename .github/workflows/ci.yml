@@ -1,26 +1,114 @@
-name: ci
+name: CI
 
 on:
   push:
     branches: [main]
   pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
-  test:
+  lint:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-go@v5
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e  # v7.0.0
         with:
           go-version-file: go.mod
-      - name: Install haproxy for config check tests
+
+      - name: golangci-lint
+        uses: golangci/golangci-lint-action@ba0d7d2ec06a0ea1cb5fa41b2e4a3ab91d21278a  # v9.3.0
+        with:
+          version: v2.13.2
+
+  tidy-check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e  # v7.0.0
+        with:
+          go-version-file: go.mod
+
+      - name: go mod tidy is a no-op
+        run: make tidy-check
+
+      - name: Formatted
+        run: make fmt-check
+
+      # shellcheck ships on the runner image.
+      - name: Shell scripts
+        run: make shellcheck
+
+  test:
+    runs-on: ubuntu-latest
+    # The minimum from go.mod and the current release.
+    strategy:
+      fail-fast: false
+      matrix:
+        go: ["1.23", "stable"]
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e  # v7.0.0
+        with:
+          go-version: ${{ matrix.go }}
+
+      # Without it the haproxy -c config test skips itself.
+      - name: Install haproxy
         run: sudo apt-get update && sudo apt-get install -y haproxy
-      - run: make lint
-      - run: make test
+
+      - name: Test
+        run: make test
+
+      - name: Vet
+        run: make vet
+
+      - name: Build
+        run: make build
+
+  coverage-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e  # v7.0.0
+        with:
+          go-version-file: go.mod
+
+      - name: Install haproxy
+        run: sudo apt-get update && sudo apt-get install -y haproxy
+
+      - name: Coverage
+        run: make go.test.coverage
+
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v7.0.1
+        with:
+          name: coverage
+          path: coverage.out
+
+  vuln:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+
+      - name: govulncheck
+        uses: golang/govulncheck-action@032d45514ae346b1db93c04b0c90b841c370344f  # v1.1.0
+        with:
+          go-version-input: stable
 
   e2e:
     runs-on: ubuntu-latest
-    needs: test
+    needs: [lint, tidy-check, test]
     steps:
-      - uses: actions/checkout@v4
-      - run: make e2e
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+
+      - name: Docker Compose end to end
+        run: make e2e

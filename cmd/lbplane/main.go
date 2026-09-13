@@ -107,8 +107,9 @@ func run(args []string) error {
 		select {
 		case <-ctx.Done():
 			shutdownCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-			defer cancel()
-			return server.Shutdown(shutdownCtx)
+			err := server.Shutdown(shutdownCtx)
+			cancel()
+			return err
 		case <-ticker.C:
 		case <-hangup:
 		}

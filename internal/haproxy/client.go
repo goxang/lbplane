@@ -70,7 +70,7 @@ func (c Client) send(ctx context.Context, socket, command string) (string, error
 	var dialer net.Dialer
 	conn, err := dialer.DialContext(ctx, "unix", socket)
 	if errors.Is(err, syscall.ENOENT) || errors.Is(err, syscall.ECONNREFUSED) {
-		return "", fmt.Errorf("%w: %v", ErrNotRunning, err)
+		return "", fmt.Errorf("%w: %w", ErrNotRunning, err)
 	}
 	if err != nil {
 		return "", err
